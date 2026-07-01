@@ -25,19 +25,19 @@ pip install -r requirements.txt
 ### Convert a single text file
 
 ```bash
-python main.py --input example.txt
+python tts.py --input example.txt
 ```
 
 ### Convert all text files in a folder
 
 ```bash
-python main.py --input ./texts
+python tts.py --input ./texts
 ```
 
 ### Use a custom voice
 
 ```bash
-python main.py --input example.txt --voice my_voice.wav
+python tts.py --input example.txt --voice my_voice.wav
 ```
 
 The script automatically looks for additional voice variants based on the filename of the reference voice:
@@ -70,13 +70,13 @@ Any missing variant is automatically replaced with `my_voice.wav`.
 ### Save output to a different directory
 
 ```bash
-python main.py --input ./texts --output_dir ./output
+python tts.py --input ./texts --output_dir ./output
 ```
 
 ### Full example
 
 ```bash
-python main.py \
+python tts.py \
     --input ./texts \
     --voice voice.wav \
     --output_dir ./output
