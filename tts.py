@@ -8,6 +8,8 @@ from pathlib import Path
 from TTS.api import TTS
 import warnings
 import argparse
+import wave
+import struct
 from num2words import num2words
 
 def archive_chunks(chunk_files, target_dir):
@@ -29,31 +31,18 @@ def delete_chunks(chunk_files):
         except Exception as e:
             print(f"Could not delete {f}: {e}")
 
-def clean_text(text):
-    
-    
-    # remove markdown formatting
-    text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
-    text = re.sub(r"\*(.*?)\*", r"\1", text)
+def preprocess(text):  
+    # add pause after chapter title
+    text = re.sub(r"^(Chapter\s+\d+.*)$", r"\1\n**", text, flags=re.MULTILINE)
     
     # remove double spaces
-    text = re.sub(r"\n \n", "\n", text)
-    text = re.sub(r"\n\n", "\n", text)
-    
-    # move single tailing word in separate line to upper line
-    #text = re.sub(r"[.!?]\s*\n([A-Za-z0-9_]+)[.!?]", r", \1.", text) 
-    #text = re.sub(r"([.!?])\s*\n((?:[A-Za-z0-9_\'-]+\s+){0,2}[A-Za-z0-9_\'-]+)[.!?](?=\s*\n|$)]", r", \2.", text)
-
+    text = re.sub(r"[ \t]+", " ", text)
+        
     # remove *
     text = text.replace("f*ck", "fuck")
     text = text.replace("f*", "fuck")
     text = text.replace("F*ck", "Fuck")
     text = text.replace("F*", "Fuck")
-    text = text.replace("*", "")
-    
-    #remove parenthesis
-    text = text.replace("(", "")
-    text = text.replace(")", "")
     
     # remove quotas
     text = text.replace("“", '"')
@@ -62,8 +51,6 @@ def clean_text(text):
     # text = text.replace("’", '"')
     # text = text.replace('"', '"')
     # text = text.replace("'", "")
-    text = re.sub(r"(?<!\w)'([^']+)'(?!\w)", r"\1", text) #test my 'will'.  -> test my will. 
-    
     
     # improve omomatopeyas 
     text = text.replace("Hahahahaha", 'Ha ha ha ha ha')
@@ -73,10 +60,7 @@ def clean_text(text):
     text = text.replace("Hah", "Ha")
     text = text.replace("Zing!", "Whoosh!")
     text = text.replace("Heh!", "")
-    text = re.sub(r'(\w)\1{2,}', r'\1\1', text)  # Boooom -> Boom (etc)
-    
-    # remove leading -
-    # text = re.sub(r'(?m)^-\s*', '', text)
+    text = re.sub(r'(\w)\1{2,}', r'\1\1', text)  # Boooom -> Boom (etc)   
     
     # normalize ...
     text = re.sub(r'\.{4,}', '...', text)
@@ -104,15 +88,51 @@ def clean_text(text):
 
     return text
 
+def postprocess(text):
+    if text.strip() == "**":
+        return text.strip();
+    
+    #remove parenthesis
+    text = text.replace("(", "")
+    text = text.replace(")", "")
+    text = text.replace("[", "")
+    text = text.replace("]", "")
+    text = text.replace("{", "")
+    text = text.replace("}", "")
+    
+    #remove quotas
+    text = text.replace('"', "")
+    text = text.replace("'", "")
+    
+    # remove non letter from the beginning
+    text = re.sub(r'^[^A-za-z]+', '', text)
+    
+    # remove tailing symbols, leve only .?!
+    text = re.sub(r"[^A-Za-z?!.\s]+$", "", text)
+
+    # remove *
+    text = text.replace("*", "")
+    
+    # remove any tailing non character for very short sentences
+    words = text.strip().split()
+    if len(words) < 3:
+        return re.sub(r"[^A-Za-z]+$", "", text)
+    
+    return text.strip();
 
 SPEECH_RE = re.compile(r'"([^"]*)"')
 SYSTEM_RE = re.compile(r'^\[([^\]]*)\]', re.MULTILINE)
 EXPR_RE = re.compile(r'^\s*([-●◦])\s*(.+)$', re.MULTILINE)
+SEPARATOR_RE = re.compile(r'^\s*\*\*\s*$', re.MULTILINE)
 
-def split_narrative_and_speech(text):
+def split(text):
     parts = []
 
     events = []
+    
+    # system only at line start
+    for m in SYSTEM_RE.finditer(text):
+        events.append(("system", m.start(), m.end(), m.group(1)))
 
     # speech anywhere in text
     for m in SPEECH_RE.finditer(text):
@@ -120,11 +140,11 @@ def split_narrative_and_speech(text):
 
     # expressive/list only at line start
     for m in EXPR_RE.finditer(text):
-        events.append(("expressive", m.start(), m.end(), m.group(2).strip().rstrip(".?!,;")))
-    
-    # expressive/list only at line start
-    for m in SYSTEM_RE.finditer(text):
-        events.append(("system", m.start(), m.end(), m.group(1)))
+        events.append(("expressive", m.start(), m.end(), m.group(0)))
+        
+    # text separators
+    for m in SEPARATOR_RE.finditer(text):
+        events.append(("special", m.start(), m.end(), "**"))
 
     events.sort(key=lambda x: x[1])
 
@@ -134,7 +154,7 @@ def split_narrative_and_speech(text):
 
         # narrative chunk
         if start > last:
-            narrative = text[last:start].strip().replace("[", "").replace("]", "")
+            narrative = text[last:start].strip()
             if narrative:
                 parts.append(("narrative", narrative))
 
@@ -143,6 +163,8 @@ def split_narrative_and_speech(text):
             parts.append(("speech", content.strip()))
         elif typ == "system":
             parts.append(("system", content.strip()))
+        elif typ == "special":
+            parts.append(("special", content.strip()))
         else:
             parts.append(("expressive", content.strip()))
 
@@ -150,11 +172,22 @@ def split_narrative_and_speech(text):
 
     # trailing narrative
     if last < len(text):
-        tail = text[last:].strip().replace("[", "").replace("]", "")
+        tail = text[last:].strip()
         if tail:
             parts.append(("narrative", tail))
 
     return parts
+
+
+def create_pause(file, duration=1, sample_rate=44100):
+    num_samples = int(duration * sample_rate)
+    silence = struct.pack("<h", 0) * num_samples
+
+    with wave.open(file, "w") as wav_file:
+        wav_file.setnchannels(1)      # mono
+        wav_file.setsampwidth(2)      # 16-bit audio
+        wav_file.setframerate(sample_rate)
+        wav_file.writeframes(silence)
 
 def txt_to_audio(text_file, device, voice, out_path=None):
     text_file = Path(text_file)
@@ -162,39 +195,48 @@ def txt_to_audio(text_file, device, voice, out_path=None):
     # ---- load text ----
     with open(text_file, "r", encoding="utf-8") as f:
         text = f.read()
-    text = clean_text(text)
+    text = preprocess(text)
     
     # ---- split ----
-    chunks = split_narrative_and_speech(text)
+    chunks = split(text)
 
     wav_files = []
 
     # ---- XTTS inference ----
     for i, (chunk_type, chunk) in enumerate(chunks):
-        chunk = chunk.strip()
-        if not chunk:
-            continue
-
+        chunk = postprocess(chunk)
         out_chunk = f"chunk_{i}.wav"
 
-        if chunk_type == "system":
-            tts.tts_to_file(
-                text=chunk,
-                speaker_wav=voice["system"],
-                language="en",
-                file_path=out_chunk,
-                repetition_penalty=2.5,
-                temperature=0.55,
-                speed=0.95
-            )
+        if not chunk:
+            continue
+        elif chunk == "**":
+            create_pause(out_chunk)
         else:
-            tts.tts_to_file(
-                text=chunk,
-                speaker_wav=voice[chunk_type],
-                language="en",
-                file_path=out_chunk
-            )
-            
+            if chunk_type == "system":
+                tts.tts_to_file(
+                    text=chunk,
+                    speaker_wav=voice["system"],
+                    language="en",
+                    file_path=out_chunk,
+                    repetition_penalty=2.5,
+                    temperature=0.55,
+                    speed=0.95
+                )
+            elif chunk_type == "expressive":
+                tts.tts_to_file(
+                    text=chunk,
+                    speaker_wav=voice["expressive"],
+                    language="en",
+                    file_path=out_chunk,
+                    temperature=1.2,
+                )
+            else:
+                tts.tts_to_file(
+                    text=chunk,
+                    speaker_wav=voice[chunk_type],
+                    language="en",
+                    file_path=out_chunk
+                )
 
         wav_files.append(out_chunk)
 
