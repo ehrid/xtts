@@ -25,6 +25,7 @@ pip install -r requirements.txt
 ### Convert a single text file
 
 ```bash
+python tts.py -in example.txt
 python tts.py --input example.txt
 ```
 
