@@ -247,7 +247,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--voice",
-        default="MariuszBonaszewski.wav",
+        default="voice.wav",
         help="Path to speaker reference wav (XTTS voice cloning)"
     )
 
