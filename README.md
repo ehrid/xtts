@@ -101,6 +101,8 @@ python tts.py \
 
 The code in this repository is licensed under the MIT License.
 
+### Coqui TTS
+
 This project depends on Coqui TTS and XTTS models, which are distributed under their own licenses. Use of those libraries and models is subject to their respective license terms, including any restrictions on commercial use.
 
 Please review the Coqui TTS and model licenses before using this project commercially.
