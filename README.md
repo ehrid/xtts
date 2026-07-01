@@ -103,3 +103,11 @@ The code in this repository is licensed under the MIT License.
 This project depends on Coqui TTS and XTTS models, which are distributed under their own licenses. Use of those libraries and models is subject to their respective license terms, including any restrictions on commercial use.
 
 Please review the Coqui TTS and model licenses before using this project commercially.
+
+### Voice Samples
+
+The voice samples included in this repository are **not** covered by the MIT License or any other license applicable to the source code.
+
+They are provided **solely for testing, evaluation, and reference purposes**. The included voices are based on recordings of **Mariusz Bonaszewski** and **Jeff Hays**. All rights to these voice recordings and their use remain with their respective rights holders.
+
+The included voice samples **must not be used, redistributed, or incorporated into private, non-commercial, or commercial projects** without obtaining the appropriate rights or permissions from the respective rights holders.
