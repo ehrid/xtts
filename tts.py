@@ -1,16 +1,19 @@
-import re
-import numpy as np
-import torch
-import soundfile as sf
-import librosa
-import shutil
-from pathlib import Path
-from TTS.api import TTS
-import warnings
 import argparse
-import wave
+import os
+from pathlib import Path
+import re
+import shutil
 import struct
+import tempfile
+import warnings
+import wave
+
+import librosa
+import numpy as np
 from num2words import num2words
+import soundfile as sf
+import torch
+from TTS.api import TTS
 
 def archive_chunks(chunk_files, target_dir):
     target_dir = Path(target_dir)
@@ -47,10 +50,7 @@ def preprocess(text):
     # remove quotas
     text = text.replace("“", '"')
     text = text.replace("”", '"')
-    # text = text.replace("‘", '"')
-    # text = text.replace("’", '"')
-    # text = text.replace('"', '"')
-    # text = text.replace("'", "")
+    text = re.sub(r"(?<!\w)'([^']+)'(?!\w)", r"\1", text) #test my 'will'.  -> test my will. 
     
     # improve omomatopeyas 
     text = text.replace("Hahahahaha", 'Ha ha ha ha ha')
@@ -102,7 +102,6 @@ def postprocess(text):
     
     #remove quotas
     text = text.replace('"', "")
-    text = text.replace("'", "")
     
     # remove non letter from the beginning
     text = re.sub(r'^[^A-za-z]+', '', text)
@@ -189,6 +188,53 @@ def create_pause(file, duration=1, sample_rate=44100):
         wav_file.setframerate(sample_rate)
         wav_file.writeframes(silence)
 
+def wav_duration(path: str) -> float:
+    with wave.open(path, "rb") as wav:
+        return wav.getnframes() / wav.getframerate()
+
+def tts_to_shortest_file(
+    tts,
+    text: str,
+    speaker_wav: str,
+    language: str,
+    file_path: str,
+    attempts: int = 5,
+    **kwargs,
+):
+    """
+    Generate the same utterance multiple times and keep the shortest result.
+    """
+    best_tmp = None
+    best_duration = float("inf")
+    tmp_files = []
+
+    try:
+        for _ in range(attempts):
+            tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+            tmp.close()
+            tmp_files.append(tmp.name)
+
+            tts.tts_to_file(
+                text=text,
+                speaker_wav=speaker_wav,
+                language=language,
+                file_path=tmp.name,
+                **kwargs,
+            )
+
+            duration = wav_duration(tmp.name)
+
+            if duration < best_duration:
+                best_duration = duration
+                best_tmp = tmp.name
+
+        shutil.move(best_tmp, file_path)
+
+    finally:
+        for tmp in tmp_files:
+            if tmp != best_tmp and os.path.exists(tmp):
+                os.remove(tmp)
+
 def txt_to_audio(text_file, device, voice, out_path=None):
     text_file = Path(text_file)
 
@@ -222,12 +268,14 @@ def txt_to_audio(text_file, device, voice, out_path=None):
                     temperature=0.55,
                     speed=0.95
                 )
-            elif chunk_type == "expressive":
-                tts.tts_to_file(
+            elif chunk_type == "expressive":       
+                tts_to_shortest_file(
+                    tts,
                     text=chunk,
                     speaker_wav=voice["expressive"],
                     language="en",
                     file_path=out_chunk,
+                    attempts=5,
                     temperature=1.2,
                 )
             else:
