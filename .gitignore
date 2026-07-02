@@ -1,0 +1,6 @@
+# Ignore specific files
+a.txt
+a.wav
+
+# Ignore Python cache directories recursively
+**/__pycache__/

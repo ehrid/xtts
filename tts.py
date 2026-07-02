@@ -1,325 +1,54 @@
 import argparse
-import os
-from pathlib import Path
-import re
-import shutil
-import struct
-import tempfile
 import warnings
-import wave
+from pathlib import Path
 
-import librosa
-import numpy as np
-from num2words import num2words
-import soundfile as sf
 import torch
 from TTS.api import TTS
 
-def archive_chunks(chunk_files, target_dir):
-    target_dir = Path(target_dir)
-    target_dir.mkdir(parents=True, exist_ok=True)
-
-    for f in chunk_files:
-        try:
-            src = Path(f)
-            dst = target_dir / src.name
-            shutil.move(str(src), str(dst))
-        except Exception as e:
-            print(f"Could not move {f}: {e}")
-
-def delete_chunks(chunk_files):
-    for f in chunk_files:
-        try:
-            Path(f).unlink()
-        except Exception as e:
-            print(f"Could not delete {f}: {e}")
-
-def preprocess(text):  
-    # add pause after chapter title
-    text = re.sub(r"^(Chapter\s+\d+.*)$", r"\1\n**", text, flags=re.MULTILINE)
-    
-    # remove double spaces
-    text = re.sub(r"[ \t]+", " ", text)
-        
-    # remove *
-    text = text.replace("f*ck", "fuck")
-    text = text.replace("f*", "fuck")
-    text = text.replace("F*ck", "Fuck")
-    text = text.replace("F*", "Fuck")
-    
-    # remove quotas
-    text = text.replace("“", '"')
-    text = text.replace("”", '"')
-    text = re.sub(r"(?<!\w)'([^']+)'(?!\w)", r"\1", text) #test my 'will'.  -> test my will. 
-    
-    # improve omomatopeyas 
-    text = text.replace("Hahahahaha", 'Ha ha ha ha ha')
-    text = text.replace("Hahahaha", 'Ha ha ha ha')
-    text = text.replace("Hahaha", "Ha ha ha")
-    text = text.replace("Haha", "Ha ha")
-    text = text.replace("Hah", "Ha")
-    text = text.replace("Zing!", "Whoosh!")
-    text = text.replace("Heh!", "")
-    text = re.sub(r'(\w)\1{2,}', r'\1\1', text)  # Boooom -> Boom (etc)   
-    
-    # normalize ...
-    text = re.sub(r'\.{4,}', '...', text)
-    text = text.replace("… …", "...")
-    text = text.replace("…", "...")
-    text = text.replace("... ", "...")
-    text = text.replace("...'", "'")
-    text = text.replace('..."', '"')
-    text = text.replace('"...', '"')
-    text = text.replace("'...", "'")
-    text = text.replace("...?", "?")
-    text = text.replace("...!", "!")
-    text = text.replace("...,", ",")
-    text = re.sub(r"(?m)^\.\.\.\s*", "", text) # ...txt -> txt
-    text = re.sub(r"\.\.\.(?=\s*$)", ".", text) # txt... -> txt.
-    text = text.replace("...", ", ")
-    
-    # txt,txt -> txt, txt
-    text = re.sub(r"(\S),(\S)", r"\1, \2", text)
-    text = re.sub(r"(\S),  (\S)", r"\1, \2", text)
-    
-    # numbers to text
-    text = re.sub(r'(?<=\d)[, ](?=\d{3}(?!\d))', '', text)
-    text = re.sub(r"\d+", lambda m: num2words(int(m.group())), text)
-
-    return text
-
-def postprocess(text):
-    if text.strip() == "**":
-        return text.strip();
-    
-    #remove parenthesis
-    text = text.replace("(", "")
-    text = text.replace(")", "")
-    text = text.replace("[", "")
-    text = text.replace("]", "")
-    text = text.replace("{", "")
-    text = text.replace("}", "")
-    
-    #remove quotas
-    text = text.replace('"', "")
-    
-    # remove non letter from the beginning
-    text = re.sub(r'^[^A-za-z]+', '', text)
-    
-    # remove tailing symbols, leve only .?!
-    text = re.sub(r"[^A-Za-z?!.\s]+$", "", text)
-
-    # remove *
-    text = text.replace("*", "")
-    
-    # remove any tailing non character for very short sentences
-    words = text.strip().split()
-    if len(words) < 3:
-        return re.sub(r"[^A-Za-z]+$", "", text)
-    
-    return text.strip();
-
-SPEECH_RE = re.compile(r'"([^"]*)"')
-SYSTEM_RE = re.compile(r'^\[([^\]]*)\]', re.MULTILINE)
-EXPR_RE = re.compile(r'^\s*([-●◦])\s*(.+)$', re.MULTILINE)
-SEPARATOR_RE = re.compile(r'^\s*\*\*\s*$', re.MULTILINE)
-
-def split(text):
-    parts = []
-
-    events = []
-    
-    # system only at line start
-    for m in SYSTEM_RE.finditer(text):
-        events.append(("system", m.start(), m.end(), m.group(1)))
-
-    # speech anywhere in text
-    for m in SPEECH_RE.finditer(text):
-        events.append(("speech", m.start(), m.end(), m.group(1)))
-
-    # expressive/list only at line start
-    for m in EXPR_RE.finditer(text):
-        events.append(("expressive", m.start(), m.end(), m.group(0)))
-        
-    # text separators
-    for m in SEPARATOR_RE.finditer(text):
-        events.append(("special", m.start(), m.end(), "**"))
-
-    events.sort(key=lambda x: x[1])
-
-    last = 0
-
-    for typ, start, end, content in events:
-
-        # narrative chunk
-        if start > last:
-            narrative = text[last:start].strip()
-            if narrative:
-                parts.append(("narrative", narrative))
-
-        # normalized output (TTS-friendly)
-        if typ == "speech":
-            parts.append(("speech", content.strip()))
-        elif typ == "system":
-            parts.append(("system", content.strip()))
-        elif typ == "special":
-            parts.append(("special", content.strip()))
-        else:
-            parts.append(("expressive", content.strip()))
-
-        last = end
-
-    # trailing narrative
-    if last < len(text):
-        tail = text[last:].strip()
-        if tail:
-            parts.append(("narrative", tail))
-
-    return parts
+from tts_engine import txt_to_audio
 
 
-def create_pause(file, duration=1, sample_rate=44100):
-    num_samples = int(duration * sample_rate)
-    silence = struct.pack("<h", 0) * num_samples
-
-    with wave.open(file, "w") as wav_file:
-        wav_file.setnchannels(1)      # mono
-        wav_file.setsampwidth(2)      # 16-bit audio
-        wav_file.setframerate(sample_rate)
-        wav_file.writeframes(silence)
-
-def wav_duration(path: str) -> float:
-    with wave.open(path, "rb") as wav:
-        return wav.getnframes() / wav.getframerate()
-
-def tts_to_shortest_file(
-    tts,
-    text: str,
-    speaker_wav: str,
-    language: str,
-    file_path: str,
-    attempts: int = 5,
-    **kwargs,
-):
-    """
-    Generate the same utterance multiple times and keep the shortest result.
-    """
-    best_tmp = None
-    best_duration = float("inf")
-    tmp_files = []
-
-    try:
-        for _ in range(attempts):
-            tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
-            tmp.close()
-            tmp_files.append(tmp.name)
-
-            tts.tts_to_file(
-                text=text,
-                speaker_wav=speaker_wav,
-                language=language,
-                file_path=tmp.name,
-                **kwargs,
-            )
-
-            duration = wav_duration(tmp.name)
-
-            if duration < best_duration:
-                best_duration = duration
-                best_tmp = tmp.name
-
-        shutil.move(best_tmp, file_path)
-
-    finally:
-        for tmp in tmp_files:
-            if tmp != best_tmp and os.path.exists(tmp):
-                os.remove(tmp)
-
-def merge_audio(wav_files, out_path):
-    audio = []
-    sr = None
-
-    for f in wav_files:
-        wav, sr = sf.read(f)
-
-        audio.append(wav)
-
-    # FIX 4: pure in-memory concatenation
-    final_wav = np.concatenate(audio, axis=0)
-    
-    sf.write(out_path, final_wav, sr)
-
-    print(f"Saved: {out_path}")
-    
-    delete_chunks(wav_files)
-
-    return out_path
-
-
-def txt_to_audio(text_file, device, voice, out_path=None):
-    text_file = Path(text_file)
-    
-    # ---- output file ----
-    if not out_path:
-        out_path = text_file.with_suffix(".wav")
-
-    # ---- load text ----
-    with open(text_file, "r", encoding="utf-8") as f:
-        text = f.read()
-    text = preprocess(text)
-    
-    # ---- split ----
-    chunks = split(text)
-
-    wav_files = []
-
-    # ---- XTTS inference ----
-    for i, (chunk_type, chunk) in enumerate(chunks):
-        chunk = postprocess(chunk)
-        out_chunk = f"chunk_{i}.wav"
-
-        if not chunk:
-            continue
-        elif chunk == "**":
-            create_pause(out_chunk)
-        else:
-            if chunk_type == "system":
-                tts.tts_to_file(
-                    text=chunk,
-                    speaker_wav=voice["system"],
-                    language="en",
-                    file_path=out_chunk,
-                    repetition_penalty=2.5,
-                    temperature=0.55,
-                    speed=0.95
-                )
-            elif chunk_type == "expressive":       
-                tts_to_shortest_file(
-                    tts,
-                    text=chunk,
-                    speaker_wav=voice["expressive"],
-                    language="en",
-                    file_path=out_chunk,
-                    attempts=5,
-                    temperature=1.2,
-                )
-            else:
-                tts.tts_to_file(
-                    text=chunk,
-                    speaker_wav=voice[chunk_type],
-                    language="en",
-                    file_path=out_chunk
-                )
-
-        wav_files.append(out_chunk)
-
-    return merge_audio(wav_files, out_path)
 
 def get_voice_path(voice_path: str, voice_type: str) -> str:
     path = Path(voice_path)
     modified = path.with_name(f"{path.stem}_{voice_type}{path.suffix}")
 
     return str(modified) if modified.exists() else voice_path
+    
+def run_tts(txt_files, voice_path, output_dir):
+    tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
+    
+    voice_dict = {
+            "narrative": voice_path,
+            "speech": get_voice_path(voice_path, "speech"),
+            "system": get_voice_path(voice_path, "system"),
+            "expressive": get_voice_path(voice_path, "expressive"),
+        }
+
+    # -------------------------
+    # Process
+    # -------------------------
+    for i, file in enumerate(txt_files):
+        print(f"\n[{i+1}/{len(txt_files)}] Processing: {file.name}")
+
+        try:
+            # determine output path
+            if output_dir:
+                output_dir.mkdir(parents=True, exist_ok=True)
+                out_file = output_dir / file.with_suffix(".wav").name
+            else:
+                out_file = file.with_suffix(".wav")
+
+            txt_to_audio(
+                tts,
+                file,
+                device,
+                voice=voice_dict,
+                out_path=out_file
+            )
+
+        except Exception as e:
+            print(f"ERROR in {file.name}: {e}")
      
 if __name__ == "__main__":
     warnings.filterwarnings("ignore")
@@ -366,37 +95,7 @@ if __name__ == "__main__":
         exit(1)
 
     print(f"Found {len(txt_files)} file(s)")
-
-    tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
     
-    voice_dict = {
-            "narrative": voice_path,
-            "speech": get_voice_path(voice_path, "speech"),
-            "system": get_voice_path(voice_path, "system"),
-            "expressive": get_voice_path(voice_path, "expressive"),
-        }
-
-    # -------------------------
-    # Process
-    # -------------------------
-    for i, file in enumerate(txt_files):
-        print(f"\n[{i+1}/{len(txt_files)}] Processing: {file.name}")
-
-        try:
-            # determine output path
-            if output_dir:
-                output_dir.mkdir(parents=True, exist_ok=True)
-                out_file = output_dir / file.with_suffix(".wav").name
-            else:
-                out_file = file.with_suffix(".wav")
-
-            txt_to_audio(
-                file,
-                device,
-                voice=voice_dict,
-                out_path=out_file
-            )
-
-        except Exception as e:
-            print(f"ERROR in {file.name}: {e}")
-		
+    run_tts(txt_files, voice_path, output_dir)
+    
+    
