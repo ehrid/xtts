@@ -235,8 +235,33 @@ def tts_to_shortest_file(
             if tmp != best_tmp and os.path.exists(tmp):
                 os.remove(tmp)
 
+def merge_audio(wav_files, out_path):
+    audio = []
+    sr = None
+
+    for f in wav_files:
+        wav, sr = sf.read(f)
+
+        audio.append(wav)
+
+    # FIX 4: pure in-memory concatenation
+    final_wav = np.concatenate(audio, axis=0)
+    
+    sf.write(out_path, final_wav, sr)
+
+    print(f"Saved: {out_path}")
+    
+    delete_chunks(wav_files)
+
+    return out_path
+
+
 def txt_to_audio(text_file, device, voice, out_path=None):
     text_file = Path(text_file)
+    
+    # ---- output file ----
+    if not out_path:
+        out_path = text_file.with_suffix(".wav")
 
     # ---- load text ----
     with open(text_file, "r", encoding="utf-8") as f:
@@ -288,33 +313,7 @@ def txt_to_audio(text_file, device, voice, out_path=None):
 
         wav_files.append(out_chunk)
 
-    # ---- merge audio ----
-    audio = []
-    sr = None
-
-    for f in wav_files:
-        wav, sr = sf.read(f)
-
-        audio.append(wav)
-
-    # FIX 4: pure in-memory concatenation
-    final_wav = np.concatenate(audio, axis=0)
-
-    # ---- output file ----
-    if not out_path:
-        out_path = text_file.with_suffix(".wav")
-
-    sf.write(out_path, final_wav, sr)
-
-    print(f"Saved: {out_path}")
-    
-    # ---- archive chunks instead of deleting ----
-    #archive_dir = text_file.parent / (text_file.stem + "_chunks")
-    #archive_chunks(wav_files, archive_dir)
-    
-    delete_chunks(wav_files)
-
-    return out_path
+    return merge_audio(wav_files, out_path)
 
 def get_voice_path(voice_path: str, voice_type: str) -> str:
     path = Path(voice_path)
