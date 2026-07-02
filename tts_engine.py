@@ -2,26 +2,28 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
+from typing import Dict, Optional, Union
 
+from TTS.api import TTS
 from audio_utils import create_pause, merge_audio, wav_duration
 from text_utils import preprocess, postprocess, split
 
 
 def tts_to_shortest_file(
-    tts,
+    tts: TTS,
     text: str,
     speaker_wav: str,
     language: str,
-    file_path: str,
+    file_path: Union[str, Path],
     attempts: int = 5,
     **kwargs,
-):
+) -> None:
     """
     Generate the same utterance multiple times and keep the shortest result.
     """
-    best_tmp = None
-    best_duration = float("inf")
-    tmp_files = []
+    best_tmp: Optional[str] = None
+    best_duration: float = float("inf")
+    tmp_files: list[str] = []
 
     try:
         for _ in range(attempts):
@@ -53,7 +55,13 @@ def tts_to_shortest_file(
 
 
 
-def txt_to_audio(tts, text_file, device, voice, out_path=None):
+def txt_to_audio(
+    tts: TTS,
+    text_file: Union[str, Path],
+    device: str,
+    voice: Dict[str, str],
+    out_path: Optional[Union[str, Path]] = None
+) -> Union[str, Path]:
     text_file = Path(text_file)
     
     # ---- output file ----
@@ -68,7 +76,7 @@ def txt_to_audio(tts, text_file, device, voice, out_path=None):
     # ---- split ----
     chunks = split(text)
 
-    wav_files = []
+    wav_files: list[str] = []
 
     # ---- XTTS inference ----
     for i, (chunk_type, chunk) in enumerate(chunks):

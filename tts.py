@@ -1,6 +1,7 @@
 import argparse
 import warnings
 from pathlib import Path
+from typing import Optional, Sequence, Dict
 
 import torch
 from TTS.api import TTS
@@ -15,10 +16,10 @@ def get_voice_path(voice_path: str, voice_type: str) -> str:
 
     return str(modified) if modified.exists() else voice_path
     
-def run_tts(txt_files, voice_path, output_dir):
+def run_tts(txt_files: Sequence[Path], voice_path: str, output_dir: Optional[Path]) -> None:
     tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
     
-    voice_dict = {
+    voice_dict: Dict[str, str] = {
             "narrative": voice_path,
             "speech": get_voice_path(voice_path, "speech"),
             "system": get_voice_path(voice_path, "system"),
@@ -78,18 +79,16 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     input_path = Path(args.input)
-    voice_path = args.voice
-    output_dir = Path(args.output_dir) if args.output_dir else None
+    voice_path: str = args.voice
+    output_dir: Optional[Path] = Path(args.output_dir) if args.output_dir else None
 
     # -------------------------
     # Resolve input
     # -------------------------
     if input_path.is_file():
-        txt_files = [input_path]
-
+        txt_files: list[Path] = [input_path]
     elif input_path.is_dir():
         txt_files = sorted(input_path.glob("*.txt"))
-
     else:
         print(f"Invalid path: {input_path}")
         exit(1)
@@ -97,5 +96,3 @@ if __name__ == "__main__":
     print(f"Found {len(txt_files)} file(s)")
     
     run_tts(txt_files, voice_path, output_dir)
-    
-    

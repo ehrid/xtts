@@ -3,12 +3,13 @@ import shutil
 import struct
 import wave
 from pathlib import Path
+from typing import Sequence, Union
 
 import numpy as np
 import soundfile as sf
 
 
-def create_pause(file, duration=1, sample_rate=44100):
+def create_pause(file: Union[str, Path], duration: float = 1, sample_rate: int = 44100) -> None:
     num_samples = int(duration * sample_rate)
     silence = struct.pack("<h", 0) * num_samples
 
@@ -19,14 +20,14 @@ def create_pause(file, duration=1, sample_rate=44100):
         wav_file.writeframes(silence)
 
 
-def wav_duration(path: str) -> float:
+def wav_duration(path: Union[str, Path]) -> float:
     with wave.open(path, "rb") as wav:
         return wav.getnframes() / wav.getframerate()
 
 
-def merge_audio(wav_files, out_path):
-    audio = []
-    sr = None
+def merge_audio(wav_files: Sequence[Union[str, Path]], out_path: Union[str, Path]) -> Union[str, Path]:
+    audio: list[np.ndarray] = []
+    sr: int | None = None
 
     for f in wav_files:
         wav, sr = sf.read(f)
@@ -45,7 +46,7 @@ def merge_audio(wav_files, out_path):
     return out_path
 
 
-def archive_chunks(chunk_files, target_dir):
+def archive_chunks(chunk_files: Sequence[Union[str, Path]], target_dir: Union[str, Path]) -> None:
     target_dir = Path(target_dir)
     target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -57,7 +58,7 @@ def archive_chunks(chunk_files, target_dir):
         except Exception as e:
             print(f"Could not move {f}: {e}")
 
-def delete_chunks(chunk_files):
+def delete_chunks(chunk_files: Sequence[Union[str, Path]]) -> None:
     for f in chunk_files:
         try:
             Path(f).unlink()

@@ -4,3 +4,11 @@ a.wav
 
 # Ignore Python cache directories recursively
 **/__pycache__/
+
+# IntelliJ / JetBrains IDE files
+.idea/
+.venv/
+*.iml
+*.ipr
+*.iws
+out/

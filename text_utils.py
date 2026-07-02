@@ -1,12 +1,17 @@
 import re
 from num2words import num2words
+from typing import List, Literal, Tuple
+
+ChunkType = Literal["narrative", "speech", "system", "expressive", "special"]
+Chunk = Tuple[ChunkType, str]
+Event = Tuple[ChunkType, int, int, str]
 
 SPEECH_RE = re.compile(r'"([^"]*)"')
 SYSTEM_RE = re.compile(r'^\[([^\]]*)\]', re.MULTILINE)
 EXPR_RE = re.compile(r'^\s*([-●◦])\s*(.+)$', re.MULTILINE)
 SEPARATOR_RE = re.compile(r'^\s*\*\*\s*$', re.MULTILINE)
 
-def preprocess(text):  
+def preprocess(text: str) -> str:
     # add pause after chapter title
     text = re.sub(r"^(Chapter\s+\d+.*)$", r"\1\n**", text, flags=re.MULTILINE)
     
@@ -60,7 +65,7 @@ def preprocess(text):
 
     return text
 
-def postprocess(text):
+def postprocess(text: str) -> str:
     if text.strip() == "**":
         return text.strip();
     
@@ -92,11 +97,10 @@ def postprocess(text):
     return text.strip();
 
 
-def split(text):
-    parts = []
+def split(text: str) -> List[Chunk]:
+    parts: List[Chunk] = []
+    events: List[Event] = []
 
-    events = []
-    
     # system only at line start
     for m in SYSTEM_RE.finditer(text):
         events.append(("system", m.start(), m.end(), m.group(1)))
