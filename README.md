@@ -54,37 +54,16 @@ python tts.py --input ./texts
 python tts.py --input example.txt --voice my_voice.wav
 ```
 
-The script automatically looks for additional voice variants based on the filename of the reference voice:
-
-| File | Used for | Fallback |
-|------|----------|----------|
-| `my_voice.wav` | Narration | — |
-| `my_voice_speech.wav` | Dialogues | `my_voice.wav` |
-| `my_voice_system.wav` | System notifications (e.g. `[notification]`) | `my_voice.wav` |
-| `my_voice_expressive.wav` | Onomatopoeias and expressive sounds | `my_voice.wav` |
-
-For example, if you specify:
-
-```bash
---voice voices/my_voice.wav
-```
-
-the script will automatically try to use:
-
-```
-voices/
-├── my_voice.wav
-├── my_voice_speech.wav
-├── my_voice_system.wav
-└── my_voice_expressive.wav
-```
-
-Any missing variant is automatically replaced with `my_voice.wav`.
-
 ### Save output to a different directory
 
 ```bash
 python tts.py --input ./texts --output_dir ./output
+```
+
+### Use config file
+
+```bash
+python tts.py --input ./texts -config config.json
 ```
 
 ### Full example
@@ -103,6 +82,7 @@ python tts.py \
 | `-in`, `--input` | Path to a `.txt` file or a folder containing `.txt` files | Yes | — |
 | `--voice` | Reference WAV file used for XTTS voice cloning | No | `voice.wav` |
 | `--output_dir` | Directory where generated WAV files are saved | No | Same directory as the input file |
+| `-c`, `--config` | Path to JSON config file | No | `None` |
 
 ## Notes
 

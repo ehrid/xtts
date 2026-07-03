@@ -1,0 +1,34 @@
+{
+   "patterns":{
+      "title":"^(Chapter\\s+\\d+.*)$",
+      "section_separator":"^\\s*\\*\\*\\s*$"
+   },
+   "narrative":{
+      "type":"narrative",
+      "voice":"voice.wav",
+      "kwargs":""
+   },
+   "voices":[
+      {
+         "type":"speech",
+         "voice":"voice_speech.wav",
+         "pattern":"\"([^\"]*)\"",
+         "multiline":false,
+         "kwargs":""
+      },
+      {
+         "type":"system",
+         "voice":"voice_system.wav",
+         "pattern":"^\\[([^\\]]*)\\]",
+         "multiline":true,
+         "kwargs":"repetition_penalty=2.5, temperature=0.55, speed=0.95"
+      },
+      {
+         "type":"expressive",
+         "voice":"voice.wav",
+         "pattern":"^\\s*([-●◦])\\s*(.+)$",
+         "multiline":true,
+         "kwargs":"temperature=1.2"
+      }
+   ]
+}

@@ -1,15 +1,9 @@
 import re
 from num2words import num2words
-from typing import List, Literal, Tuple
+from typing import List, Tuple, Optional, Dict, Any
 
-ChunkType = Literal["narrative", "speech", "system", "expressive", "special"]
-Chunk = Tuple[ChunkType, str]
-Event = Tuple[ChunkType, int, int, str]
-
-SPEECH_RE = re.compile(r'"([^"]*)"')
-SYSTEM_RE = re.compile(r'^\[([^\]]*)\]', re.MULTILINE)
-EXPR_RE = re.compile(r'^\s*([-●◦])\s*(.+)$', re.MULTILINE)
-SEPARATOR_RE = re.compile(r'^\s*\*\*\s*$', re.MULTILINE)
+Chunk = Tuple[str, str]
+Event = Tuple[str, int, int, str]
 
 ABBREVIATIONS = {
     "No.": "number",
@@ -42,10 +36,22 @@ ONOMATOPOEIAS.update(
     {k.lower(): v for k, v in ONOMATOPOEIAS.copy().items()}
 )
 
-def preprocess(text: str) -> str:
-    # add pause after chapter title
-    text = re.sub(r"^(Chapter\s+\d+.*)$", r"\1\n**", text, flags=re.MULTILINE)
-    
+def _normalize_regex(pattern: str) -> str:
+    # JSON has no r-prefix; keep regex usable after loading from JSON.
+    # Example JSON: "^\\s*\\*\\*\\s*$" -> Python regex: "^\s*\*\*\s*$"
+    try:
+        return pattern.encode("utf-8").decode("unicode_escape")
+    except Exception:
+        return pattern
+
+def preprocess(text: str, config: Optional[Dict[str, Any]] = None) -> str:
+    if config:
+        # add pause after chapter title (configurable)
+        title_pattern = config.get("patterns", {}).get("title")
+        if title_pattern:
+            title_pattern = _normalize_regex(title_pattern)
+            text = re.sub(title_pattern, r"\1\n**", text, flags=re.MULTILINE)
+
     # Replace Abbreviations with full text versions
     pattern = re.compile(r'\b(?:' + '|'.join(map(re.escape, ABBREVIATIONS)) + r')')
     text = pattern.sub(lambda m: ABBREVIATIONS[m.group(0)], text)
@@ -138,51 +144,56 @@ def postprocess(text: str) -> str:
     return text.strip();
 
 
-def split(text: str) -> List[Chunk]:
+def split(text: str, config: Optional[Dict[str, Any]] = None) -> List[Chunk]:
     parts: List[Chunk] = []
     events: List[Event] = []
 
-    # system only at line start
-    for m in SYSTEM_RE.finditer(text):
-        events.append(("system", m.start(), m.end(), m.group(1)))
+    # No config => no splitting, all narrative
+    if not config:
+        narrative = text.strip()
+        return [("narrative", narrative)] if narrative else []
 
-    # speech anywhere in text
-    for m in SPEECH_RE.finditer(text):
-        events.append(("speech", m.start(), m.end(), m.group(1)))
+    patterns_cfg = config.get("patterns", {}) if isinstance(config, dict) else {}
+    voices_cfg = config.get("voices", []) if isinstance(config, dict) else []
 
-    # expressive/list only at line start
-    for m in EXPR_RE.finditer(text):
-        events.append(("expressive", m.start(), m.end(), m.group(0)))
-        
-    # text separators
-    for m in SEPARATOR_RE.finditer(text):
-        events.append(("special", m.start(), m.end(), "**"))
+    # Optional separator
+    section_separator = patterns_cfg.get("section_separator")
+    if section_separator:
+        sep_re = re.compile(_normalize_regex(section_separator), re.MULTILINE)
+        for m in sep_re.finditer(text):
+            events.append(("special", m.start(), m.end(), "**"))
+
+    # Dynamic voice patterns (flexible for future types)
+    for v in voices_cfg:
+        vtype = v.get("type")
+        vpattern = v.get("pattern")
+        if not vtype or not vpattern:
+            continue
+
+        flags = re.MULTILINE if bool(v.get("multiline", False)) else 0
+        cre = re.compile(_normalize_regex(vpattern), flags)
+
+        for m in cre.finditer(text):
+            content = m.group(1) if (m.lastindex and m.lastindex >= 1) else m.group(0)
+            events.append((vtype, m.start(), m.end(), content))
+
+    # Config present but nothing to split with => narrative only
+    if not events:
+        narrative = text.strip()
+        return [("narrative", narrative)] if narrative else []
 
     events.sort(key=lambda x: x[1])
-
     last = 0
 
     for typ, start, end, content in events:
-
-        # narrative chunk
         if start > last:
             narrative = text[last:start].strip()
             if narrative:
                 parts.append(("narrative", narrative))
 
-        # normalized output (TTS-friendly)
-        if typ == "speech":
-            parts.append(("speech", content.strip()))
-        elif typ == "system":
-            parts.append(("system", content.strip()))
-        elif typ == "special":
-            parts.append(("special", content.strip()))
-        else:
-            parts.append(("expressive", content.strip()))
-
+        parts.append((typ, content.strip()))
         last = end
 
-    # trailing narrative
     if last < len(text):
         tail = text[last:].strip()
         if tail:
