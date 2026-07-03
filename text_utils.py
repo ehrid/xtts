@@ -89,6 +89,9 @@ def preprocess(text: str) -> str:
     text = re.sub(r"(\S),(\S)", r"\1, \2", text)
     text = re.sub(r"(\S),  (\S)", r"\1, \2", text)
     
+    # 1. txt -> 1 - txt
+    text = re.sub(r'^(\d+)\.\s+(.+)$', r'\1 - \2', text, flags=re.MULTILINE)
+    
     # numbers to text
     text = re.sub(r'(?<=\d)[, ](?=\d{3}(?!\d))', '', text)
     text = re.sub(r"\d+", lambda m: num2words(int(m.group())), text)
