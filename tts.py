@@ -88,12 +88,14 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "-v",
         "--voice",
         default="voice.wav",
         help="Path to speaker reference wav (XTTS voice cloning)"
     )
 
     parser.add_argument(
+        "-out",
         "--output_dir",
         default=None,
         help="Directory to save output wav files (default: same as input file location)"

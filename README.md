@@ -51,18 +51,21 @@ python tts.py --input ./texts
 ### Use a custom voice
 
 ```bash
+python tts.py --input example.txt -v my_voice.wav
 python tts.py --input example.txt --voice my_voice.wav
 ```
 
 ### Save output to a different directory
 
 ```bash
-python tts.py --input ./texts --output_dir ./output
+python tts.py --input ./texts -out ./output/
+python tts.py --input ./texts --output_dir ./output/
 ```
 
 ### Use config file
 
 ```bash
+python tts.py --input ./texts -c config.json
 python tts.py --input ./texts -config config.json
 ```
 
@@ -162,8 +165,8 @@ example:
 | Argument | Description | Required | Default |
 |----------|-------------|----------|---------|
 | `-in`, `--input` | Path to a `.txt` file or a folder containing `.txt` files | Yes | — |
-| `--voice` | Reference WAV file used for XTTS voice cloning | No | `voice.wav` |
-| `--output_dir` | Directory where generated WAV files are saved | No | Same directory as the input file |
+| `-v`, `--voice` | Reference WAV file used for XTTS voice cloning | No | `voice.wav` |
+| `-out`, `--output_dir` | Directory where generated WAV files are saved | No | Same directory as the input file |
 | `-c`, `--config` | Path to JSON config file | No | `None` |
 
 ## Notes
