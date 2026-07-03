@@ -62,6 +62,8 @@ def preprocess(text: str) -> str:
     # numbers to text
     text = re.sub(r'(?<=\d)[, ](?=\d{3}(?!\d))', '', text)
     text = re.sub(r"\d+", lambda m: num2words(int(m.group())), text)
+    
+    # TODO: omomatopeyas replacement by good sounding ones
 
     return text
 
@@ -80,11 +82,17 @@ def postprocess(text: str) -> str:
     #remove quotas
     text = text.replace('"', "")
     
+    # Merge short sentences (less than 5 words) into the previous line
+    text = re.sub(r'([.!?])\s*\n((?:[A-Za-z0-9_-]+\s+){0,3}[A-Za-z0-9_\'-]+[.!?])(?=\s*\n|\Z)', r'; \2', text)
+    
     # remove non letter from the beginning
     text = re.sub(r'^[^A-za-z]+', '', text)
     
     # remove tailing symbols, leve only .?!
     text = re.sub(r"[^A-Za-z?!.\s]+$", "", text)
+    
+    # collapse multiple symbols between text: text - ???? text -> text - text
+    text = re.sub(r'(?<=[A-Za-z])[ \t]*([^\w\s])(?:[ \t]*[^\w\s])+[ \t]*(?=[A-Za-z])', r'\1 ', text)
 
     # remove *
     text = text.replace("*", "")
