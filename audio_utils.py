@@ -34,7 +34,6 @@ def merge_audio(wav_files: Sequence[Union[str, Path]], out_path: Union[str, Path
 
         audio.append(wav)
 
-    # FIX 4: pure in-memory concatenation
     final_wav = np.concatenate(audio, axis=0)
     
     sf.write(out_path, final_wav, sr)

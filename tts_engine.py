@@ -88,12 +88,16 @@ def txt_to_audio(
         elif chunk == "**":
             create_pause(out_chunk)
         else:
+            words = text.strip().split()
+            repetitions = 1 if len(words) > 4 else 5 # generate few time to pick shottest in case of very short chunks
             if chunk_type == "system":
-                tts.tts_to_file(
+                tts_to_shortest_file(
+                    tts,
                     text=chunk,
                     speaker_wav=voice["system"],
                     language="en",
                     file_path=out_chunk,
+                    attempts=repetitions,
                     repetition_penalty=2.5,
                     temperature=0.55,
                     speed=0.95
@@ -105,15 +109,17 @@ def txt_to_audio(
                     speaker_wav=voice["expressive"],
                     language="en",
                     file_path=out_chunk,
-                    attempts=5,
+                    attempts=repetitions,
                     temperature=1.2,
                 )
             else:
-                tts.tts_to_file(
+                tts_to_shortest_file(
+                    tts,
                     text=chunk,
                     speaker_wav=voice[chunk_type],
                     language="en",
-                    file_path=out_chunk
+                    file_path=out_chunk,
+                    attempts=repetitions,
                 )
 
         wav_files.append(out_chunk)
