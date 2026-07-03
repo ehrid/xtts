@@ -11,9 +11,26 @@ SYSTEM_RE = re.compile(r'^\[([^\]]*)\]', re.MULTILINE)
 EXPR_RE = re.compile(r'^\s*([-●◦])\s*(.+)$', re.MULTILINE)
 SEPARATOR_RE = re.compile(r'^\s*\*\*\s*$', re.MULTILINE)
 
+ABBREVIATIONS = {
+    "No.": "number",
+    "Mr.": "mister",
+    "Mrs.": "missus",
+    "Dr.": "doctor",
+    "Prof.": "professor",
+    "St.": "saint",
+    "vs.": "versus",
+    "etc.": "et cetera",
+    "e.g.": "for example",
+    "i.e.": "that is",
+}
+
 def preprocess(text: str) -> str:
     # add pause after chapter title
     text = re.sub(r"^(Chapter\s+\d+.*)$", r"\1\n**", text, flags=re.MULTILINE)
+    
+    # Replace Abbreviations with full text versions
+    pattern = re.compile(r'\b(?:' + '|'.join(map(re.escape, ABBREVIATIONS)) + r')')
+    text = pattern.sub(lambda m: ABBREVIATIONS[m.group(0)], text)
     
     # remove double spaces
     text = re.sub(r"[ \t]+", " ", text)
