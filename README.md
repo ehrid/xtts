@@ -20,19 +20,6 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-## Text Format
-
-This project assumes that input text follows the formatting conventions below:
-
-- **Dialogue** is enclosed in double quotation marks (`"..."`).
-- **Expressions and exclamations** (e.g. `- Boom!`) begin with a leading hyphen (`-`).
-- **System notifications, stage directions, or metadata** are enclosed in square brackets (`[...]`).
-- **\*\*** is a delimiter between narrative sections
-- **Chapter {no} title** indicates number and title of the chapter
-- All remaining text is treated as **narrative**.
-
-If your source text uses different formatting conventions, it should be adapted to match the format above before processing to ensure the best results.
-
 ## Usage
 
 ### Convert a single text file
