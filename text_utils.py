@@ -24,6 +24,16 @@ ABBREVIATIONS = {
     "i.e.": "that is",
 }
 
+ONOMATOPOEIAS = {
+    "Hahahahaha": 'Ha ha ha ha ha',
+    "Hahahaha": 'Ha ha ha ha',
+    "Hahaha": "Ha ha ha",
+    "Haha": "Ha ha",
+    "Zing!": "Whoosh!",
+    "Wiing": "Whing",
+    "Heh!": "",
+}
+
 def preprocess(text: str) -> str:
     # add pause after chapter title
     text = re.sub(r"^(Chapter\s+\d+.*)$", r"\1\n**", text, flags=re.MULTILINE)
@@ -47,14 +57,9 @@ def preprocess(text: str) -> str:
     text = re.sub(r"(?<!\w)'([^']+)'(?!\w)", r"\1", text) #test my 'will'.  -> test my will. 
     
     # improve omomatopeyas 
-    text = text.replace("Hahahahaha", 'Ha ha ha ha ha')
-    text = text.replace("Hahahaha", 'Ha ha ha ha')
-    text = text.replace("Hahaha", "Ha ha ha")
-    text = text.replace("Haha", "Ha ha")
-    text = text.replace("Hah", "Ha")
-    text = text.replace("Zing!", "Whoosh!")
-    text = text.replace("Heh!", "")
     text = re.sub(r'(\w)\1{2,}', r'\1\1', text)  # Boooom -> Boom (etc)   
+    pattern = re.compile(r'\b(?:' + '|'.join(map(re.escape, ONOMATOPOEIAS)) + r')')
+    text = pattern.sub(lambda m: ONOMATOPOEIAS[m.group(0)], text)
     
     # normalize ...
     text = re.sub(r'\.{4,}', '...', text)
