@@ -75,6 +75,83 @@ python tts.py \
     --output_dir ./output
 ```
 
+## Config file Overview
+
+The configuration file is structured into three main parts:
+
+```json
+{
+  "patterns": { ... },
+  "narrative": { ... },
+  "voices": [ ... ]
+}
+```
+
+### Patterns
+
+Defines global text structure detection rules.
+
+| Field | Description |
+|------|-------------|
+| `title` | Pattern for matching chapter title (Optional) |
+| `section_separator` | Pattern for matching section separator like ** (Optional) |
+
+example:
+
+```json
+"patterns": {
+  "title": "^(Chapter\\s+\\d+.*)$",
+  "section_separator": "^\\s*\\*\\*\\s*$"
+}
+```
+
+
+### Narrative (Default Voice)
+
+This voice is used when no specific rule matches.
+
+| Field | Description |
+|------|-------------|
+| `type` | Logical category |
+| `voice` | Reference audio for XTTS cloning |
+| `kwargs` | XTTS generation parameters |
+
+example:
+
+```json
+"narrative": {
+  "type": "narrative",
+  "voice": "voice.wav",
+  "kwargs": ""
+}
+```
+
+
+### Voice Routing Rules
+
+The `voices` array defines how different text patterns are handled.
+
+| Field | Description |
+|------|-------------|
+| `type` | Logical category |
+| `voice` | Reference audio for XTTS cloning |
+| `pattern` | Regex used for matching text |
+| `multiline` | Whether to use flags=re.MULTILINE or not|
+| `kwargs` | XTTS generation parameters |
+
+---
+example:
+
+```json
+{
+  "type":"system",
+  "voice":"voice_system.wav",
+  "pattern":"^\\[([^\\]]*)\\]",
+  "multiline":true,
+  "kwargs":"repetition_penalty=2.5, temperature=0.55, speed=0.95"
+}
+```
+
 ## Command-line arguments
 
 | Argument | Description | Required | Default |
