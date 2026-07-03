@@ -44,6 +44,25 @@ def _normalize_regex(pattern: str) -> str:
     except Exception:
         return pattern
 
+def _time_unit(value: int, singular: str, plural: str) -> str:
+    return singular if value == 1 else plural
+
+def _time_to_words(match: re.Match[str]) -> str:
+    hour = int(match.group("hour"))
+    minute = int(match.group("minute"))
+    second = match.groupdict().get("second")
+
+    parts = [
+        f"{num2words(hour)} {_time_unit(hour, 'hour', 'hours')}",
+        f"{num2words(minute)} {_time_unit(minute, 'minute', 'minutes')}",
+    ]
+
+    if second is not None:
+        second_value = int(second)
+        parts.append(f"{num2words(second_value)} {_time_unit(second_value, 'second', 'seconds')}")
+
+    return " ".join(parts)
+
 def preprocess(text: str, config: Optional[Dict[str, Any]] = None) -> str:
     if config:
         # add pause after chapter title (configurable)
@@ -55,6 +74,8 @@ def preprocess(text: str, config: Optional[Dict[str, Any]] = None) -> str:
     # Replace Abbreviations with full text versions
     pattern = re.compile(r'\b(?:' + '|'.join(map(re.escape, ABBREVIATIONS)) + r')')
     text = pattern.sub(lambda m: ABBREVIATIONS[m.group(0)], text)
+
+
     
     # remove double spaces
     text = re.sub(r"[ \t]+", " ", text)
@@ -97,7 +118,19 @@ def preprocess(text: str, config: Optional[Dict[str, Any]] = None) -> str:
     
     # 1. txt -> 1 - txt
     text = re.sub(r'^(\d+)\.\s+(.+)$', r'\1 - \2', text, flags=re.MULTILINE)
-    
+
+    # time to speech: HH:mm:ss first, then HH:mm
+    text = re.sub(
+        r'(?<!\d)(?P<hour>[01]\d|2[0-3]):(?P<minute>[0-5]\d):(?P<second>[0-5]\d)(?!\d)',
+        _time_to_words,
+        text,
+    )
+    text = re.sub(
+        r'(?<!\d)(?P<hour>[01]\d|2[0-3]):(?P<minute>[0-5]\d)(?!\d)',
+        _time_to_words,
+        text,
+    )
+
     # numbers to text
     text = re.sub(r'(?<=\d)[, ](?=\d{3}(?!\d))', '', text)
     text = re.sub(r"\d+", lambda m: num2words(int(m.group())), text)
