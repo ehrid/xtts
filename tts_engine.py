@@ -88,7 +88,7 @@ def txt_to_audio(
         elif chunk == "**":
             create_pause(out_chunk)
         else:
-            words = text.strip().split()
+            words = chunk.strip().split()
             repetitions = 1 if len(words) > 4 else 5 # generate few time to pick shottest in case of very short chunks
             if chunk_type == "system":
                 tts_to_shortest_file(
