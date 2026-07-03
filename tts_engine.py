@@ -105,6 +105,7 @@ def txt_to_audio(
     config: Optional[Dict[str, Any]] = None,
 ) -> Union[str, Path]:
     text_file = Path(text_file)
+    language = config.get("language", "en") if config else "en"
 
     # ---- output file ----
     if not out_path:
@@ -138,7 +139,7 @@ def txt_to_audio(
                 tts,
                 text=chunk,
                 speaker_wav=speaker_wav,
-                language="en",
+                language=language,
                 file_path=out_chunk,
                 attempts=repetitions,
                 **kwargs_map.get(chunk_type, {})

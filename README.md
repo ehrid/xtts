@@ -77,10 +77,15 @@ python tts.py \
 
 ## Config file Overview
 
-The configuration file is structured into three main parts:
+The configuration file is structured into parameters and three main parts:
+
+| Parameter | Description |
+|------|-------------|
+| `language` | language for XTTS generation (Optional, default "en") |
 
 ```json
 {
+  "language": "en",
   "patterns": { ... },
   "narrative": { ... },
   "voices": [ ... ]

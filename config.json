@@ -1,5 +1,6 @@
 {
-   "patterns":{
+  "language":"en",
+  "patterns":{
       "title":"^(Chapter\\s+\\d+.*)$",
       "section_separator":"^\\s*\\*\\*\\s*$"
    },

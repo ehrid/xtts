@@ -1,40 +1,25 @@
 import re
+from functools import lru_cache
+from importlib import import_module
 from num2words import num2words
 from typing import List, Tuple, Optional, Dict, Any
 
 Chunk = Tuple[str, str]
 Event = Tuple[str, int, int, str]
 
-ABBREVIATIONS = {
-    "No.": "number",
-    "Mr.": "mister",
-    "Mrs.": "missus",
-    "Dr.": "doctor",
-    "Prof.": "professor",
-    "St.": "saint",
-    "vs.": "versus",
-    "etc.": "et cetera",
-    "e.g.": "for example",
-    "i.e.": "that is",
-    "Lv.": "level",
-    "Lvl.": "level"
-}
-ABBREVIATIONS.update(
-    {k.lower(): v for k, v in ABBREVIATIONS.copy().items()}
-)
 
-ONOMATOPOEIAS = {
-    "Hahahahaha": 'Ha ha ha ha ha',
-    "Hahahaha": 'Ha ha ha ha',
-    "Hahaha": "Ha ha ha",
-    "Haha": "Ha ha",
-    "Zing!": "Whoosh!",
-    "Wiing": "Whing",
-    "Heh!": "",
-}
-ONOMATOPOEIAS.update(
-    {k.lower(): v for k, v in ONOMATOPOEIAS.copy().items()}
-)
+@lru_cache(maxsize=None)
+def _load_localized_dict(prefix: str, constant: str, language: str) -> Dict[str, str]:
+    try:
+        module = import_module(f"{prefix}_{language}")
+        value = getattr(module, constant, {})
+        return value if isinstance(value, dict) else {}
+    except ModuleNotFoundError:
+        return {}
+
+
+def _get_language(config: Optional[Dict[str, Any]]) -> str:
+    return str(config.get("language", "en")) if config else "en"
 
 def _normalize_regex(pattern: str) -> str:
     # JSON has no r-prefix; keep regex usable after loading from JSON.
@@ -64,6 +49,10 @@ def _time_to_words(match: re.Match[str]) -> str:
     return " ".join(parts)
 
 def preprocess(text: str, config: Optional[Dict[str, Any]] = None) -> str:
+    language = _get_language(config)
+    abbreviations = _load_localized_dict("abbreviations", "ABBREVIATIONS", language)
+    onomatopoeias = _load_localized_dict("onomatopoeias", "ONOMATOPOEIAS", language)
+
     if config:
         # add pause after chapter title (configurable)
         title_pattern = config.get("patterns", {}).get("title")
@@ -72,11 +61,10 @@ def preprocess(text: str, config: Optional[Dict[str, Any]] = None) -> str:
             text = re.sub(title_pattern, r"\1\n**", text, flags=re.MULTILINE)
 
     # Replace Abbreviations with full text versions
-    pattern = re.compile(r'\b(?:' + '|'.join(map(re.escape, ABBREVIATIONS)) + r')')
-    text = pattern.sub(lambda m: ABBREVIATIONS[m.group(0)], text)
+    if abbreviations:
+        pattern = re.compile(r'\b(?:' + '|'.join(map(re.escape, abbreviations)) + r')')
+        text = pattern.sub(lambda m: abbreviations[m.group(0)], text)
 
-
-    
     # remove double spaces
     text = re.sub(r"[ \t]+", " ", text)
         
@@ -92,10 +80,11 @@ def preprocess(text: str, config: Optional[Dict[str, Any]] = None) -> str:
     text = re.sub(r"(?<!\w)'([^']+)'(?!\w)", r"\1", text) #test my 'will'.  -> test my will. 
     
     # improve omomatopeyas 
-    text = re.sub(r'(\w)\1{2,}', r'\1\1', text)  # Boooom -> Boom (etc)   
-    pattern = re.compile(r'\b(?:' + '|'.join(map(re.escape, ONOMATOPOEIAS)) + r')')
-    text = pattern.sub(lambda m: ONOMATOPOEIAS[m.group(0)], text)
-    
+    text = re.sub(r'(\w)\1{2,}', r'\1\1', text)  # Boooom -> Boom (etc)
+    if onomatopoeias:
+        pattern = re.compile(r'\b(?:' + '|'.join(map(re.escape, onomatopoeias)) + r')')
+        text = pattern.sub(lambda m: onomatopoeias[m.group(0)], text)
+
     # normalize ...
     text = re.sub(r'\.{4,}', '...', text)
     text = text.replace("… …", "...")
