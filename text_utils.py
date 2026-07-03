@@ -153,6 +153,8 @@ def postprocess(text: str) -> str:
     text = text.replace("]", "")
     text = text.replace("{", "")
     text = text.replace("}", "")
+    text = text.replace("<", "")
+    text = text.replace(">", "")
     
     #remove quotas
     text = text.replace('"', "")
