@@ -22,7 +22,12 @@ ABBREVIATIONS = {
     "etc.": "et cetera",
     "e.g.": "for example",
     "i.e.": "that is",
+    "Lv.": "level",
+    "Lvl.": "level"
 }
+ABBREVIATIONS.update(
+    {k.lower(): v for k, v in ABBREVIATIONS.copy().items()}
+)
 
 ONOMATOPOEIAS = {
     "Hahahahaha": 'Ha ha ha ha ha',
@@ -33,6 +38,9 @@ ONOMATOPOEIAS = {
     "Wiing": "Whing",
     "Heh!": "",
 }
+ONOMATOPOEIAS.update(
+    {k.lower(): v for k, v in ONOMATOPOEIAS.copy().items()}
+)
 
 def preprocess(text: str) -> str:
     # add pause after chapter title
