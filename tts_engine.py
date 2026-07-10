@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Dict, Optional, Union, Any
 
 from TTS.api import TTS
-from audio_utils import create_pause, merge_audio, wav_duration
+from audio_utils import create_section_chunk, merge_audio, wav_duration
 from text_utils import preprocess, postprocess, split
 
 
@@ -97,6 +97,38 @@ def _build_kwargs_map(config: Optional[Dict[str, Any]]) -> Dict[str, Dict[str, A
     return out
 
 
+def _prepare_ending_sound(config: Optional[Dict[str, Any]], text_file: Path) -> None:
+    if not config:
+        return
+
+    patterns = config.get("patterns")
+    if not isinstance(patterns, dict):
+        return
+
+    ending_sound = patterns.get("ending_sound")
+    if not ending_sound:
+        return
+
+    ending_path = Path(ending_sound)
+    if ending_path.is_dir():
+        patterns["ending_sound_full"] = str(ending_path / text_file.with_suffix(".wav").name)
+
+def _prepare_opening_sound(config: Optional[Dict[str, Any]], text_file: Path) -> None:
+    if not config:
+        return
+
+    patterns = config.get("patterns")
+    if not isinstance(patterns, dict):
+        return
+
+    opening_sound = patterns.get("opening_sound")
+    if not opening_sound:
+        return
+
+    opening_path = Path(opening_sound)
+    if opening_path.is_dir():
+        patterns["opening_sound_full"] = str(opening_path / text_file.with_suffix(".wav").name)
+
 def txt_to_audio(
     tts: TTS,
     text_file: Union[str, Path],
@@ -106,10 +138,14 @@ def txt_to_audio(
 ) -> Union[str, Path]:
     text_file = Path(text_file)
     language = config.get("language", "en") if config else "en"
+    _prepare_ending_sound(config, text_file)
+    _prepare_opening_sound(config, text_file)
 
     # ---- output file ----
     if not out_path:
         out_path = text_file.with_suffix(".wav")
+
+
 
     # ---- load text ----
     with open(text_file, "r", encoding="utf-8") as f:
@@ -130,7 +166,7 @@ def txt_to_audio(
         if not chunk:
             continue
         elif chunk == "**":
-            create_pause(out_chunk)
+            create_section_chunk(out_chunk, config)
         else:
             words = chunk.strip().split()
             repetitions = 1 if len(words) > 4 else 5
@@ -147,4 +183,4 @@ def txt_to_audio(
 
         wav_files.append(out_chunk)
 
-    return merge_audio(wav_files, out_path)
+    return merge_audio(wav_files, out_path, config)

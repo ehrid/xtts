@@ -1,0 +1,24 @@
+{
+  "language":"pl",
+  "patterns":{
+      "title":"^(Chapter\\s+\\d+.*)$",
+      "section_separator":"^\\s*\\*\\*\\s*$"
+	  "section_sound":"separator.wav"
+	  "opening_sound":"opening.wav"
+	  "ending_sound":"opening.wav"
+   },
+   "narrative":{
+      "type":"narrative",
+      "voice":"voice.wav",
+      "kwargs":""
+   },
+   "voices":[
+      {
+         "type":"speech",
+         "voice":"voice_speech.wav",
+         "pattern":"\"([^\"]*)\"",
+         "multiline":false,
+         "kwargs":""
+      }
+   ]
+}
