@@ -7,6 +7,15 @@ from typing import List, Tuple, Optional, Dict, Any
 Chunk = Tuple[str, str]
 Event = Tuple[str, int, int, str]
 
+# Python's re is Unicode-aware by default.
+# Any Unicode letter, excluding digits.
+_UNICODE_LETTER = r"[^\W\d]"
+
+# Any Unicode letter/digit plus apostrophes
+_READABLE_WORD = r"(?:[^\W]|')+"
+
+# Anything that is not a Unicode letter
+_NON_UNICODE_LETTER = r"(?:[^\w]|\d)"
 
 @lru_cache(maxsize=None)
 def _load_localized_dict(prefix: str, constant: str, language: str) -> Dict[str, str]:
@@ -144,16 +153,24 @@ def postprocess(text: str) -> str:
     text = text.replace('"', "")
     
     # Merge short sentences (less than 5 words) into the previous line
-    text = re.sub(r'([.!?])\s*\n((?:[A-Za-z0-9_-]+\s+){0,3}[A-Za-z0-9_\'-]+[.!?])(?=\s*\n|\Z)', r'; \2', text)
-    
+    text = re.sub(
+        rf'([.!?])\s*\n((?:{_READABLE_WORD}\s+){{0,3}}{_READABLE_WORD}[.!?])(?=\s*\n|\Z)',
+        r'; \2',
+        text,
+    )
+
     # remove non letter from the beginning
-    text = re.sub(r'^[^A-za-z]+', '', text)
-    
-    # remove tailing symbols, leve only .?!
-    text = re.sub(r"[^A-Za-z?!.\s]+$", "", text)
-    
+    text = re.sub(rf'^{_NON_UNICODE_LETTER}+', '', text)
+
+    # remove tailing symbols, leave only .?! plus _ and -
+    text = re.sub(rf"(?:(?!{_UNICODE_LETTER}|[_-]|[?!.\s]).)+$", "", text)
+
     # collapse multiple symbols between text: text - ???? text -> text - text
-    text = re.sub(r'(?<=[A-Za-z])[ \t]*([^\w\s])(?:[ \t]*[^\w\s])+[ \t]*(?=[A-Za-z])', r'\1 ', text)
+    text = re.sub(
+        rf'(?<={_UNICODE_LETTER})[ \t]*([^\w\s-])(?:[ \t]*[^\w\s-])+[ \t]*(?={_UNICODE_LETTER})',
+        r'\1 ',
+        text,
+    )
 
     # remove *
     text = text.replace("*", "")
@@ -161,8 +178,8 @@ def postprocess(text: str) -> str:
     # remove any tailing non character for very short sentences
     words = text.strip().split()
     if len(words) < 3:
-        return re.sub(r"[^A-Za-z]+$", "", text)
-    
+        return re.sub(rf"{_NON_UNICODE_LETTER}+$", "", text)
+
     return text.strip();
 
 
