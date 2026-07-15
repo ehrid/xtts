@@ -141,6 +141,11 @@ def postprocess(text: str) -> str:
     if text.strip() == "**":
         return text.strip();
     
+    # Normalize whitespace, then put each sentence on its own line.
+    # This makes the short-sentence merge work consistently even when input has no \n.
+    text = re.sub(r"\s+", " ", text).strip()
+    text = re.sub(r"([.!?]+)\s*", r"\1\n", text).strip()
+
     #remove parenthesis
     text = text.replace("(", "")
     text = text.replace(")", "")
