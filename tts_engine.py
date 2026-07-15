@@ -185,7 +185,7 @@ def txt_to_audio(
         elif chunk == "**":
             create_section_chunk(out_chunk, config)
         elif chunk == "***":
-            create_section_chunk(out_chunk)
+            create_section_chunk(out_chunk, None)
         else:
             words = chunk.strip().split()
             repetitions = 1 if len(words) > SHORT_TEXT_LENGTH_LIMIT else 3
