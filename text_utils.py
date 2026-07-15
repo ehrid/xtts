@@ -139,7 +139,7 @@ def preprocess(text: str, config: Optional[Dict[str, Any]] = None) -> str:
 
 def postprocess(text: str) -> str:
     if text.strip() == "**":
-        return text.strip();
+        return text.strip()
     
     # Normalize whitespace, then put each sentence on its own line.
     # This makes the short-sentence merge work consistently even when input has no \n.
@@ -179,13 +179,16 @@ def postprocess(text: str) -> str:
 
     # remove *
     text = text.replace("*", "")
-    
+
+    return text.strip()
+
+def remove_tailing_non_character(text: str, length_limit: int = 4) -> str:
     # remove any tailing non character for very short sentences
     words = text.strip().split()
-    if len(words) < 3:
-        return re.sub(rf"{_NON_UNICODE_LETTER}+$", "", text)
+    if len(words) > length_limit:
+        return text
+    return re.sub(rf"{_NON_UNICODE_LETTER}+$", "", text)
 
-    return text.strip();
 
 
 def split(text: str, config: Optional[Dict[str, Any]] = None) -> List[Chunk]:

@@ -6,7 +6,9 @@ from typing import Dict, Optional, Union, Any
 
 from TTS.api import TTS
 from audio_utils import create_section_chunk, merge_audio, wav_duration
-from text_utils import preprocess, postprocess, split
+from text_utils import preprocess, postprocess, split, remove_tailing_non_character
+
+SHORT_TEXT_LENGTH_LIMIT = 4
 
 
 def tts_to_shortest_file(
@@ -15,35 +17,50 @@ def tts_to_shortest_file(
     speaker_wav: str,
     language: str,
     file_path: Union[str, Path],
-    attempts: int = 5,
+    attempts: int = 3,
     **kwargs,
 ) -> None:
     """
     Generate the same utterance multiple times and keep the shortest result.
+    For short text, also try punctuation variants to avoid bad endings.
     """
     best_tmp: Optional[str] = None
     best_duration: float = float("inf")
     tmp_files: list[str] = []
 
+    texts = [text]
+
+    if attempts > 1:
+        cleaned_text = remove_tailing_non_character(text, SHORT_TEXT_LENGTH_LIMIT).strip()
+        texts = [
+            cleaned_text,
+            f"{cleaned_text}.",
+            f"{cleaned_text},",
+        ]
+
     try:
-        for _ in range(attempts):
-            tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
-            tmp.close()
-            tmp_files.append(tmp.name)
+        for candidate_text in texts:
+            for _ in range(attempts):
+                tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+                tmp.close()
+                tmp_files.append(tmp.name)
 
-            tts.tts_to_file(
-                text=text,
-                speaker_wav=speaker_wav,
-                language=language,
-                file_path=tmp.name,
-                **kwargs,
-            )
+                tts.tts_to_file(
+                    text=candidate_text,
+                    speaker_wav=speaker_wav,
+                    language=language,
+                    file_path=tmp.name,
+                    **kwargs,
+                )
 
-            duration = wav_duration(tmp.name)
+                duration = wav_duration(tmp.name)
 
-            if duration < best_duration:
-                best_duration = duration
-                best_tmp = tmp.name
+                if duration < best_duration:
+                    best_duration = duration
+                    best_tmp = tmp.name
+
+        if best_tmp is None:
+            raise RuntimeError("No TTS output was generated")
 
         shutil.move(best_tmp, file_path)
 
@@ -169,7 +186,7 @@ def txt_to_audio(
             create_section_chunk(out_chunk, config)
         else:
             words = chunk.strip().split()
-            repetitions = 1 if len(words) > 4 else 5
+            repetitions = 1 if len(words) > SHORT_TEXT_LENGTH_LIMIT else 3
             speaker_wav = voice.get(chunk_type) or voice.get("narrative")
             tts_to_shortest_file(
                 tts,
