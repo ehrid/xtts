@@ -1,21 +1,21 @@
 {
   "language":"pl",
   "patterns":{
-      "title":"^(Chapter\\s+\\d+.*)$",
-      "section_separator":"^\\s*\\*\\*\\s*$"
-	  "section_sound":"separator.wav"
-	  "opening_sound":"opening.wav"
-	  "ending_sound":"opening.wav"
+      "section_separator":"^\\s*\\*\\*\\s*$",
+	  "section_pause_separator":"^\\s*\\*\\*\\*\\s*$",
+	  "section_sound":"C:/Source/Audiobooks/opening/separator.wav",
+	  "opening_sound":"C:/Source/Audiobooks/opening",
+	  "ending_sound":"C:/Source/Audiobooks/opening"
    },
    "narrative":{
       "type":"narrative",
-      "voice":"voice.wav",
+      "voice":"zygmunt.wav",
       "kwargs":""
    },
    "voices":[
       {
          "type":"speech",
-         "voice":"voice_speech.wav",
+         "voice":"zygmunt_glos.wav",
          "pattern":"\"([^\"]*)\"",
          "multiline":false,
          "kwargs":""

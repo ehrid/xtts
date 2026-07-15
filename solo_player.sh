@@ -1,0 +1,1 @@
+py tts.py -in "C:\Users\zygol\Downloads\epub\Solo Player\OEBPS\Text\audio" -c config.json

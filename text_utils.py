@@ -138,7 +138,7 @@ def preprocess(text: str, config: Optional[Dict[str, Any]] = None) -> str:
     return text
 
 def postprocess(text: str) -> str:
-    if text.strip() == "**":
+    if text.strip() == "**" or text.strip() == "***":
         return text.strip()
     
     # Normalize whitespace, then put each sentence on its own line.
@@ -211,6 +211,12 @@ def split(text: str, config: Optional[Dict[str, Any]] = None) -> List[Chunk]:
         sep_re = re.compile(_normalize_regex(section_separator), re.MULTILINE)
         for m in sep_re.finditer(text):
             events.append(("special", m.start(), m.end(), "**"))
+            
+    section_pause_separator = patterns_cfg.get("section_pause_separator")
+    if section_pause_separator:
+        sep_re = re.compile(_normalize_regex(section_pause_separator), re.MULTILINE)
+        for m in sep_re.finditer(text):
+            events.append(("special", m.start(), m.end(), "***"))
 
     # Dynamic voice patterns (flexible for future types)
     for v in voices_cfg:
